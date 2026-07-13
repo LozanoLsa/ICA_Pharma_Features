@@ -1,0 +1,53 @@
+PROJECT: 18_ICA_UNSUP
+TITLE: Data Sources & Feature Engineering
+
+--------------------------------------------------
+OVERVIEW:
+This dataset contains 1,583 pharmaceutical syrup batch records from 8 quality sensors and 3 latent process drivers. The ML task is unsupervised source separation (FastICA, k=3) to recover the three independent process root causes from 8 observed sensor signals. In real production, only the 8 sensor columns are available; the true source columns (f1, f2, f3) exist only for educational validation. FastICA recovers: IC1 → Active Reagent (r=0.74), IC2 → Solvent / Ionic Balance (r=0.70), IC3 → Agitation & Kinetics (r=0.85). Batch quality distribution: 90.0% in-spec, 5.0% warning, 5.1% alert.
+
+--------------------------------------------------
+REAL-WORLD DATA SOURCES:
+
+Sensor Group                           | Source System                    | Instrument
+---------------------------------------|----------------------------------|------------------------------
+ph_final, conductivity_ms_cm           | PAT / In-line analyzer           | pH electrode + conductivity cell at batch end
+viscosity_cp                           | Quality Lab / In-line viscometer | Rotational viscometer or in-line Coriolis
+density_g_ml                           | Quality Lab                      | Oscillating U-tube density meter
+turbidity_ntu                          | PAT                              | In-line nephelometer
+reaction_temp_c, reaction_time_min     | DCS / Batch execution system     | RTD at reactor jacket + MES timestamps
+active_conc_mg_ml                      | HPLC / LIMS                      | Post-batch high-performance liquid chromatography
+
+--------------------------------------------------
+VARIABLE DESCRIPTIONS:
+
+Observed Sensors (model input — 8 columns):
+
+ph_final            - Final batch pH; dominant source: F2 (Solvent / Ionic Balance). ICA mixing matrix loading: +0.766 on IC2.
+viscosity_cp        - Product viscosity (cP); dominant source: F1 (Active Reagent). ICA mixing matrix loading: -0.865 on IC1.
+conductivity_ms_cm  - Ionic conductivity (mS/cm); dominant source: F2 (Solvent / Ionic Balance). ICA mixing matrix loading: +0.723 on IC2.
+density_g_ml        - Product density (g/mL); dominant source: F1 (Active Reagent). Highest loading: -0.964 on IC1.
+turbidity_ntu       - Turbidity / clarity (NTU); dominant source: F3 (Agitation & Kinetics). Contributes to IC3.
+reaction_temp_c     - Peak reaction temperature (°C); dominant source: F3 (Agitation & Kinetics). ICA loading: -0.777 on IC3.
+reaction_time_min   - Total batch duration (min); dominant source: F3 (Agitation & Kinetics). Highest loading: -0.878 on IC3.
+active_conc_mg_ml   - Active ingredient concentration (mg/mL); dominant source: F1 (Active Reagent). ICA loading: -0.854 on IC1.
+
+Latent Sources (validation only — 3 columns; not available in real production):
+
+f1_active_reagent       - True active reagent dosage / purity variation; ICA recovery IC1 r = 0.74. Root action: review reagent batch certificate, check dosing pump calibration.
+f2_solvent_salts        - True solvent quality / ionic balance variation; ICA recovery IC2 r = 0.70. Root action: review water quality, check buffer preparation.
+f3_agitation_kinetics   - True agitation / mixing kinetics variation; ICA recovery IC3 r = 0.85. Root action: inspect agitator speed control, check impeller wear.
+
+--------------------------------------------------
+FEATURE ENGINEERING:
+
+FastICA (scikit-learn) with k=3 components — k selected from two independent inputs: (1) PCA variance bound: 3 PCs explain 94.3% of total variance in 8 sensors; (2) domain knowledge: the process has three independent input variability sources (reagent dosage, solvent preparation, reactor agitation) with separate control loops. Internal whitening (decorrelation) applied automatically by FastICA before independence maximization. Convergence reached in 5–7 iterations. IC distance metric for batch health: IC_dist = sqrt(IC1² + IC2² + IC3²). Warning threshold (p90): dist >= 2.54. Alert threshold (p95): dist >= 2.86. No train/test split — ICA decomposes the full correlation structure of the dataset.
+
+--------------------------------------------------
+BUSINESS CONTEXT:
+
+Used by pharmaceutical quality engineers and process scientists in syrup batch manufacturing. ICA replaces the corrective-action-per-sensor approach with root cause attribution: when viscosity, density, and active concentration co-deviate (IC1 drifts), there is one corrective action — fix the reagent dosage — not three separate non-causal interventions. The IC distance metric and its directional decomposition (which component drifted) provide a Rosetta Stone between sensor deviations and root causes, enabling targeted corrective actions before the next batch runs.
+
+--------------------------------------------------
+GOAL:
+
+Recover three independent process root causes (active reagent variation, solvent / ionic balance, agitation kinetics) from 8 observed quality sensor readings using FastICA, enabling root cause attribution for out-of-spec batches rather than per-sensor corrective actions. ICA recovers all three sources with r = 0.70–0.85. Batch quality: 1,424 in-spec (90.0%), 79 warning (5.0%), 80 alert (5.1%). FastICA convergence: 5 iterations.

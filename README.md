@@ -26,7 +26,7 @@ A quality system that reads sensor deviations and writes corrective actions for 
 
 **Independent Component Analysis (ICA)** solves the prior problem. Before you can decide what to fix, you need to know what is broken. ICA reverses the mixing process — it separates the 8 observed sensor signals back into 3 independent source signals, one per root cause, without ever measuring those sources directly. The output is not a deviation report. It is a **root cause attribution**: IC3 deviated on batch 847 — check agitation speed and temperature profile.
 
-This project applies FastICA to **1,500 pharmaceutical syrup batch records** from 8 quality sensors, recovering 3 independent components that align with the known process root causes: IC1 → Active Reagent (r = 0.75), IC2 → Solvent / Ionic Balance (r = 0.67), IC3 → Agitation & Kinetics (r = 0.82). A single **IC distance metric** classifies 90% of batches as in-spec, 5% as warning, and 5% as alert — with a direction for each alert that points directly to the responsible process driver.
+This project applies FastICA to **1,583 pharmaceutical syrup batch records** from 8 quality sensors, recovering 3 independent components that align with the known process root causes: IC1 → Active Reagent (r = 0.74), IC2 → Solvent / Ionic Balance (r = 0.70), IC3 → Agitation & Kinetics (r = 0.85). A single **IC distance metric** classifies 90% of batches as in-spec, 5% as warning, and 5% as alert — with a direction for each alert that points directly to the responsible process driver.
 
 > 📦 **Full Project Pack** — complete dataset, notebook with full outputs,
 > presentation deck (PPTX + PDF), and `app.py` simulator available on
@@ -36,7 +36,7 @@ This project applies FastICA to **1,500 pharmaceutical syrup batch records** fro
 
 ## 📊 Dataset
 
-**File:** `pharma_data.csv` — 1,500 pharmaceutical syrup batch records from 8 quality sensors and 3 latent process drivers.
+**File:** `pharma_data.csv` — 1,583 pharmaceutical syrup batch records from 8 quality sensors and 3 latent process drivers.
 
 **Observed Sensors (model input — 8 columns):**
 
@@ -55,9 +55,9 @@ This project applies FastICA to **1,500 pharmaceutical syrup batch records** fro
 
 | Column | Description | ICA Recovery |
 |--------|-------------|--------------|
-| `f1_active_reagent` | True active reagent dosage / purity variation | IC1, r = 0.75 |
-| `f2_solvent_salts` | True solvent quality / ionic balance variation | IC2, r = 0.67 |
-| `f3_agitation_kinetics` | True agitation / mixing kinetics variation | IC3, r = 0.82 |
+| `f1_active_reagent` | True active reagent dosage / purity variation | IC1, r = 0.74 |
+| `f2_solvent_salts` | True solvent quality / ionic balance variation | IC2, r = 0.70 |
+| `f3_agitation_kinetics` | True agitation / mixing kinetics variation | IC3, r = 0.85 |
 
 > ⚠️ **In real production, only the 8 sensor columns are available.** The true source columns exist here for educational validation only. FastICA recovers them purely from the observed sensor readings.
 
@@ -84,7 +84,7 @@ The sensor correlation structure is not noise — it is the fingerprint of the m
 
 The answer to this question is the entire point of the project.
 
-PCA (Project 17) finds the directions of maximum **variance** in the data. On a motor with 10 sensors, the first principal component captured 55.3% of variance because the degradation cascade made all sensors move together in the same direction. PCA was effective because variance and the signal of interest were aligned.
+PCA (Project 17) finds the directions of maximum **variance** in the data. On a motor with 10 sensors, the first principal component captured 54.4% of variance because the degradation cascade made all sensors move together in the same direction. PCA was effective because variance and the signal of interest were aligned.
 
 In a pharma batch process, variance and root cause are not aligned. F1, F2, and F3 are designed to be independent — they are driven by different supply chain inputs, different process units, different control loops. A reagent dosage drift has nothing to do with a solvent ionic balance variation. These are orthogonal events, not correlated ones.
 
@@ -92,12 +92,12 @@ When the root causes are independent, **PCA will mix them into its components** 
 
 | Method | Component | Best Source Match | Recovery |r| |
 |--------|-----------|------------------|----------|
-| **ICA** | IC1 | F1 — Active Reagent | **0.7503** |
-| **ICA** | IC2 | F2 — Solvent / Ionic | **0.6724** |
-| **ICA** | IC3 | F3 — Agitation | **0.8214** |
-| PCA | PC1 | F2 — Solvent / Ionic | 0.5782 |
-| PCA | PC2 | F1 — Active Reagent | 0.8038 |
-| PCA | PC3 | F3 — Agitation | 0.6796 |
+| **ICA** | IC1 | F1 — Active Reagent | **0.7354** |
+| **ICA** | IC2 | F2 — Solvent / Ionic | **0.6951** |
+| **ICA** | IC3 | F3 — Agitation | **0.8490** |
+| PCA | PC1 | F2 — Solvent / Ionic | 0.5808 |
+| PCA | PC2 | F1 — Active Reagent | 0.8069 |
+| PCA | PC3 | F3 — Agitation | 0.6760 |
 
 ICA achieves higher alignment with the true physical causes for 2 of 3 components, and — critically — **maps each component to a unique root cause**. PCA's PC2 achieves 0.80 with F1, but PC1 and PC3 are partial mixtures. The PCA decomposition is usable for anomaly detection; it is not usable for root cause attribution. That distinction is the entire operational difference between the two methods.
 
@@ -105,7 +105,7 @@ ICA achieves higher alignment with the true physical causes for 2 of 3 component
 
 The component count selection combines two inputs:
 
-**PCA variance bound:** Running PCA on all 8 components, 3 principal components explain 94.4% of total variance. This means the 8 sensor signals carry roughly 3 dimensions of independent information — consistent with 3 root causes.
+**PCA variance bound:** Running PCA on all 8 components, 3 principal components explain 94.3% of total variance. This means the 8 sensor signals carry roughly 3 dimensions of independent information — consistent with 3 root causes.
 
 **Domain knowledge:** The process is known to have three independent input variability sources: reagent dosage, solvent preparation, and reactor agitation. These are separate process steps with separate control loops. k = 3 is not a statistical guess — it is a physical fact that the variance analysis confirms.
 
@@ -117,20 +117,20 @@ The ICA mixing matrix A describes how each source contributes to each observed s
 
 | Sensor | IC1 (Active Reagent) | IC2 (Solvent / Ionic) | IC3 (Agitation) |
 |--------|---------------------|----------------------|-----------------|
-| `ph_final` | −0.221 | **+0.723** | −0.642 |
-| `viscosity_cp` | **−0.866** | −0.450 | +0.035 |
-| `conductivity_ms_cm` | −0.548 | **+0.689** | −0.457 |
-| `density_g_ml` | **−0.971** | −0.023 | +0.159 |
-| `turbidity_ntu` | −0.648 | −0.375 | −0.563 |
-| `reaction_temp_c` | −0.462 | −0.291 | **−0.772** |
-| `reaction_time_min` | −0.220 | −0.355 | **−0.865** |
-| `active_conc_mg_ml` | **−0.869** | −0.331 | +0.333 |
+| `ph_final` | −0.242 | **+0.766** | −0.579 |
+| `viscosity_cp` | **−0.865** | −0.450 | +0.029 |
+| `conductivity_ms_cm` | −0.562 | **+0.723** | −0.378 |
+| `density_g_ml` | **−0.964** | −0.032 | +0.192 |
+| `turbidity_ntu` | −0.663 | −0.332 | −0.573 |
+| `reaction_temp_c` | −0.487 | −0.224 | **−0.777** |
+| `reaction_time_min` | −0.255 | −0.289 | **−0.878** |
+| `active_conc_mg_ml` | **−0.854** | −0.354 | +0.343 |
 
-**IC1 (Active Reagent):** dominant in density (−0.971), active concentration (−0.869), viscosity (−0.866). When IC1 deviates, expect these three sensors to co-deviate. Root action: review reagent batch certificate, check dosing pump calibration.
+**IC1 (Active Reagent):** dominant in density (−0.964), active concentration (−0.854), viscosity (−0.865). When IC1 deviates, expect these three sensors to co-deviate. Root action: review reagent batch certificate, check dosing pump calibration.
 
-**IC2 (Solvent / Ionic Balance):** dominant in pH (+0.723), conductivity (+0.689). When IC2 deviates, pH and conductivity shift together. Root action: review water quality, check buffer preparation, inspect ion exchange resins.
+**IC2 (Solvent / Ionic Balance):** dominant in pH (+0.766), conductivity (+0.723). When IC2 deviates, pH and conductivity shift together. Root action: review water quality, check buffer preparation, inspect ion exchange resins.
 
-**IC3 (Agitation & Kinetics):** dominant in reaction time (−0.865), reaction temperature (−0.772). When IC3 deviates, the batch runs hotter and faster or cooler and slower. Root action: inspect agitator speed control, check impeller wear, review cooling jacket flow.
+**IC3 (Agitation & Kinetics):** dominant in reaction time (−0.878), reaction temperature (−0.777). When IC3 deviates, the batch runs hotter and faster or cooler and slower. Root action: inspect agitator speed control, check impeller wear, review cooling jacket flow.
 
 ---
 
@@ -138,22 +138,22 @@ The ICA mixing matrix A describes how each source contributes to each observed s
 
 | Metric | Value | Interpretation |
 |--------|-------|----------------|
-| **FastICA convergence** | 7 iterations | Fast, stable solution |
-| **PCA variance (3 PCs)** | 94.4% | Confirms k=3 covers the information space |
-| **IC1 → F1 recovery** | r = 0.75 | Active reagent source well-recovered |
-| **IC2 → F2 recovery** | r = 0.67 | Solvent source recovered (most overlap with F3) |
-| **IC3 → F3 recovery** | r = 0.82 | Agitation source best-recovered |
-| **Warning threshold (p90)** | dist ≥ 2.54 | 5.0% of batches (75 records) |
-| **Alert threshold (p95)** | dist ≥ 2.85 | 5.0% of batches (75 records) |
-| **In-spec batches** | 1,350 (90.0%) | Within normal IC-distance envelope |
+| **FastICA convergence** | 5 iterations | Fast, stable solution |
+| **PCA variance (3 PCs)** | 94.3% | Confirms k=3 covers the information space |
+| **IC1 → F1 recovery** | r = 0.74 | Active reagent source well-recovered |
+| **IC2 → F2 recovery** | r = 0.70 | Solvent source recovered (most overlap with F3) |
+| **IC3 → F3 recovery** | r = 0.85 | Agitation source best-recovered |
+| **Warning threshold (p90)** | dist ≥ 2.54 | 5.0% of batches (79 records) |
+| **Alert threshold (p95)** | dist ≥ 2.86 | 5.1% of batches (80 records) |
+| **In-spec batches** | 1,424 (90.0%) | Within normal IC-distance envelope |
 
 **Batch Quality Distribution:**
 
 | Status | Count | Share | Threshold |
 |--------|-------|-------|-----------|
-| ✅ In-spec | 1,350 | 90.0% | IC dist < 2.54 |
-| ⚠️ Warning | 75 | 5.0% | 2.54 ≤ dist < 2.85 |
-| 🔴 Alert | 75 | 5.0% | dist ≥ 2.85 |
+| ✅ In-spec | 1,424 | 90.0% | IC dist < 2.54 |
+| ⚠️ Warning | 79 | 5.0% | 2.54 ≤ dist < 2.86 |
+| 🔴 Alert | 80 | 5.1% | dist ≥ 2.86 |
 
 ---
 
@@ -181,7 +181,7 @@ ICA_Pharma_Features/
 └── README.md
 ```
 
-> 📦 **Full Project Pack** — complete dataset (1,500 records), notebook with full outputs,
+> 📦 **Full Project Pack** — complete dataset (1,583 records), notebook with full outputs,
 > presentation deck (PPTX + PDF), and `app.py` simulator available on
 > [Gumroad](https://lozanolsa.gumroad.com).
 
@@ -220,7 +220,7 @@ streamlit run app.py
 
 4. **Sign and order of ICs are arbitrary — physical interpretation is not.** FastICA may return IC1 with a negative sign compared to F1, or reorder IC1 and IC2 between runs. The mathematical content is identical — only the labeling convention changes. The physical interpretation (which sensors load onto which component) is stable and recoverable by inspecting the mixing matrix against domain knowledge.
 
-5. **ICA and PCA are complementary, not competing.** PCA revealed that 94.4% of the variance in 8 sensors is explained by 3 components — that information motivated k = 3 for ICA. The two methods answer different questions from the same data. A complete quality monitoring system would run both: PCA for anomaly detection and health trending, ICA for root cause attribution when an anomaly is confirmed.
+5. **ICA and PCA are complementary, not competing.** PCA revealed that 94.3% of the variance in 8 sensors is explained by 3 components — that information motivated k = 3 for ICA. The two methods answer different questions from the same data. A complete quality monitoring system would run both: PCA for anomaly detection and health trending, ICA for root cause attribution when an anomaly is confirmed.
 
 ---
 
